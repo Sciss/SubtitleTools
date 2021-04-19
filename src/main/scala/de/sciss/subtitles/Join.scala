@@ -22,7 +22,12 @@ import scala.io.Source
 
 object Join {
   case class Config(
-                     inputs: Seq[File], output: File, charset: String, forceOverwrite: Boolean, verbose: Boolean
+                     inputs         : Seq[File],
+                     output         : File,
+                     charset        : String,
+                     forceOverwrite : Boolean,
+                     verbose        : Boolean,
+                     sort           : Boolean,
                    )
 
   case class Group(header: Seq[String], body: Seq[String]) {
@@ -34,6 +39,9 @@ object Join {
     }
   }
 
+  object Title {
+    implicit val SortedByTimeStart: Ordering[Title] = Ordering.by(_.time.start.millis)
+  }
   case class Title(id: Int, time: TimeSpan, body: Seq[String]) {
     def mkString: String = {
       val bodyS = body.mkString("\n")
@@ -90,11 +98,13 @@ object Join {
       val charset : Opt[String]     = opt(default = Some(UTF_8.name()))
       val force   : Opt[Boolean]    = toggle(default = Some(false))
       val verbose : Opt[Boolean]    = toggle(default = Some(false))
+      val sort    : Opt[Boolean]    = toggle(default = Some(true))
       val inputs  : Opt[List[File]] = trailArg(required = true)
       verify()
 
       val conf: Config = Config(inputs = inputs(), output = output(),
-        charset = charset(), forceOverwrite = force(), verbose = verbose())
+        charset = charset(), forceOverwrite = force(), verbose = verbose(), sort = sort(),
+      )
     }
     run(parse.conf)
   }
@@ -172,9 +182,11 @@ object Join {
       tt
     }
 
-    val renumbered = sources.iterator.flatMap(_.contents).zipWithIndex.map { case (title, id0) =>
+    val titledIn0   = sources.flatMap(_.contents).distinct  // automatically remove duplicates
+    val titledIn    = if (!conf.sort) titledIn0 else titledIn0.sorted
+    val renumbered  = titledIn.zipWithIndex.map { case (title, id0) =>
       title.copy(id = id0 + 1)
-    } .toSeq
+    }
 
     val titlesOut = sources.head.copy(contents = renumbered)
     titlesOut.write(conf.output)
