@@ -160,7 +160,7 @@ object Join {
       val fOut = new FileOutputStream(f)
       try {
         val head      = if (byteOrderMark) "\uFEFF" else ""
-        val contentsS = contents.map(_.mkString).mkString(head, "\n", "")
+        val contentsS = contents.map(_.mkString).mkString(head, "\n", "\n")
         fOut.write(contentsS.getBytes(charset))
       } finally {
         fOut.close()
